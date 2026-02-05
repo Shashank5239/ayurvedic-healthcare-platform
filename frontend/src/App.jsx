@@ -12,7 +12,8 @@ import Results from "./pages/Results";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import About from "./pages/About";
-import KnowledgeBase from "./pages/KnowledgeBase"; // <--- NOW IMPORTING THE REAL FILE
+import KnowledgeBase from "./pages/KnowledgeBase";
+import DoctorDashboard from "./pages/DoctorDashboard"; // NEW IMPORT
 
 function App() {
   return (
@@ -27,15 +28,16 @@ function App() {
           {/* Authentication Page */}
           <Route path="/login" element={<Login />} />
           
-          {/* Main App Features */}
+          {/* Patient App Features */}
           <Route path="/symptoms" element={<SymptomInput />} />
           <Route path="/results" element={<Results />} />
           <Route path="/dashboard" element={<Dashboard />} />
           
+          {/* Doctor App Features */}
+          <Route path="/doctor-dashboard" element={<DoctorDashboard />} /> {/* NEW ROUTE */}
+          
           {/* Informational Pages */}
           <Route path="/about" element={<About />} />
-          
-          {/* Connected Real Knowledge Base Page */}
           <Route path="/knowledge" element={<KnowledgeBase />} />
 
           {/* Fallback */}

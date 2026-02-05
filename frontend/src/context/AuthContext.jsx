@@ -17,11 +17,11 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = (userData) => {
-    // 1. Set State
-    setUser(userData);
-    // 2. Persist to Storage (so Navbar updates)
-    localStorage.setItem('ayur_user', JSON.stringify(userData));
+  // UPDATED: Now accepts 'role' (default is 'patient')
+  const login = (userData, role = 'patient') => {
+    const userWithRole = { ...userData, role };
+    setUser(userWithRole);
+    localStorage.setItem('ayur_user', JSON.stringify(userWithRole));
   };
 
   const logout = () => {
