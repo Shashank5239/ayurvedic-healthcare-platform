@@ -9,35 +9,41 @@ export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // 1. Hook Logic (ALWAYS call these first)
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  useEffect(() => { setIsMobileMenuOpen(false); }, [location]);
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location]);
 
-  // ===== NAVIGATION LOGIC =====
+  // 2. Navigation Logic (Define this before returning)
   let navLinks = [];
-  
   if (!user) {
-     // Guest View
      navLinks = [{ name: "Home", path: "/" }];
   } else if (user.role === 'doctor') {
-     // Doctor View
      navLinks = [
         { name: "Portal", path: "/doctor-dashboard" },
         { name: "Patients", path: "/doctor-dashboard" },
         { name: "Resources", path: "/knowledge" },
      ];
   } else {
-     // Patient View
      navLinks = [
         { name: "Home", path: "/" },
         { name: "Symptoms", path: "/symptoms" },
+        { name: "Find Doctors", path: "/doctors" },
         { name: "About", path: "/about" },
         { name: "Knowledge", path: "/knowledge" },
      ];
+  }
+
+  // 3. Conditional Return (MUST be after all hooks)
+  // Now it's safe to hide the navbar because hooks have already run.
+  if (location.pathname === '/login') {
+    return null;
   }
 
   return (

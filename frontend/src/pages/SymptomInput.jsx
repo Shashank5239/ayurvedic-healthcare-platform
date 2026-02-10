@@ -13,7 +13,7 @@ const SymptomInput = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   const navigate = useNavigate();
-  const { user } = useAuth(); // We need to check this on submit
+  const { user } = useAuth();
 
   const symptomsList = [
     { id: 'headache', label: 'Headache', icon: '⚡' },
@@ -51,49 +51,87 @@ const SymptomInput = () => {
     }));
   };
 
+  // ===== SUBMIT LOGIC =====
   const submitSymptoms = async () => {
     setIsLoading(true);
     
-    // 1. Generate Recommendations (Mock)
-    const mockRecommendations = [
-      {
-        symptom: 'headache',
-        doshaImbalance: 'Pitta/Vata',
-        severityLevel: formData.symptoms[0]?.severity > 2 ? 'severe' : 'moderate',
-        recommendations: formData.symptoms.map(symptom => {
-          const remedies = {
-            headache: { home: "Ginger tea 2x daily; rest in dark room", med: "Brahmi Vati", reason: "Balances Pitta heat, calms Vata" },
-            indigestion: { home: "Ajwain water after meals", med: "Triphala Churna", reason: "Stimulates Agni (digestive fire)" },
-            'joint_pain': { home: "Warm sesame oil massage", med: "Maharasnadi Kwath", reason: "Pacifies Vata dryness" },
-            'cold_cough': { home: "Turmeric milk before bed", med: "Sitopaladi Churna", reason: "Reduces Kapha congestion" },
-            'anxiety': { home: "Deep breathing & warm milk", med: "Ashwagandha", reason: "Calms Vata nervous energy" }
-          };
-          return {
-            symptom: symptom.name,
-            ...remedies[symptom.name] || remedies.headache,
-            explanation: remedies[symptom.name]?.reason || "Balances dosha imbalance"
-          };
-        }),
-        disclaimer: "⚠️ NOT medical advice. Consult certified practitioner."
-      }
-    ];
+    // 1. Analyze Primary Symptom to determine Specialist & Dosha
+    const primarySymptom = formData.symptoms[0]?.name || 'general';
+    let recommendedSpecialty = 'Kayachikitsa'; // Default
+    let doshaPrediction = 'Vata/Pitta'; 
 
+    // Simple Logic Map for Demo
+    if (['joint_pain', 'cold_cough'].includes(primarySymptom)) {
+        recommendedSpecialty = 'Panchakarma'; 
+        doshaPrediction = 'Vata';
+    } else if (['indigestion', 'fatigue'].includes(primarySymptom)) {
+        recommendedSpecialty = 'Diet & Nutrition';
+        doshaPrediction = 'Pitta';
+    } else if (['anxiety', 'insomnia', 'headache'].includes(primarySymptom)) {
+        recommendedSpecialty = 'Nadi Pariksha'; 
+        doshaPrediction = 'Vata';
+    } else if (['skin_rash'].includes(primarySymptom)) {
+        recommendedSpecialty = 'Kayachikitsa';
+        doshaPrediction = 'Pitta';
+    }
+
+    // 2. Generate Detailed Recommendations (So the report is useful when viewed later)
+    const detailedRecommendations = formData.symptoms.map(s => {
+       let remedies = { home: "Rest & Hydration", med: "Consult Specialist" };
+       
+       if(s.name === 'headache') remedies = { home: "Ginger tea, Dark room rest", med: "Brahmi Vati" };
+       if(s.name === 'indigestion') remedies = { home: "Ajwain water", med: "Triphala Churna" };
+       if(s.name === 'joint_pain') remedies = { home: "Warm Sesame Oil Massage", med: "Maharasnadi Kwath" };
+       if(s.name === 'cold_cough') remedies = { home: "Turmeric Milk (Haldi Doodh)", med: "Sitopaladi Churna" };
+       if(s.name === 'anxiety') remedies = { home: "Deep Breathing, Meditation", med: "Ashwagandha" };
+       if(s.name === 'insomnia') remedies = { home: "Nutmeg milk before bed", med: "Jatamansi" };
+       if(s.name === 'skin_rash') remedies = { home: "Aloe Vera Gel", med: "Neem Capsules" };
+       
+       return {
+          symptom: s.name,
+          ...remedies,
+          explanation: `Balances the ${doshaPrediction} aggravation.`
+       };
+    });
+
+    // 3. Create the Full Report Object
+    const medicalReport = {
+        id: Date.now(),
+        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+        symptoms: formData.symptoms,
+        doshaImbalance: doshaPrediction,
+        severityLevel: formData.symptoms.some(s => s.severity === 3) ? 'severe' : 'moderate',
+        recommendedSpecialty: recommendedSpecialty,
+        recommendations: detailedRecommendations, 
+        disclaimer: "Consult a specialist before starting any treatment.",
+        status: 'Unreviewed' 
+    };
+
+    // Simulate Processing Time
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    // 2. Save Data Locally (so it persists across the redirect)
-    localStorage.setItem('recommendations', JSON.stringify(mockRecommendations[0]));
+    // 4. Save to History (Silent Save)
+    // We save this even if not logged in (to localStorage) so it persists after login
+    const existingHistory = JSON.parse(localStorage.getItem('ayur_history') || '[]');
+    localStorage.setItem('ayur_history', JSON.stringify([medicalReport, ...existingHistory]));
+
     setIsLoading(false);
 
-    // 3. CHECK AUTH
+    // 5. Redirect Logic
     if (user) {
-        // User is logged in -> Go straight to results
-        navigate('/results');
+        // Logged In: Go to Doctor List with Filter applied
+        navigate('/doctors', { 
+            state: { 
+                specialty: recommendedSpecialty, 
+                reason: `Based on your symptoms (${primarySymptom.replace('_',' ')}), we recommend a specialist in:` 
+            } 
+        });
     } else {
-        // User is Guest -> Redirect to Login with a specific message
+        // Guest: Go to Login -> Then Doctor List
         navigate('/login', { 
             state: { 
-                from: '/results', // Tell Login page to send us here after success
-                message: "Please sign in or create an account to view your full health report." 
+                from: '/doctors', 
+                message: "Analysis complete. Please sign in to connect with a specialist." 
             } 
         });
     }
@@ -105,8 +143,6 @@ const SymptomInput = () => {
       {/* Background Decor */}
       <div className="fixed inset-0 z-0 pointer-events-none">
          <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px] opacity-60" />
-         <div className="absolute top-20 right-0 w-[500px] h-[500px] bg-blue-100/50 rounded-full blur-[80px] opacity-50" />
-         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-100/50 rounded-full blur-[80px] opacity-50" />
       </div>
 
       <div className="max-w-3xl mx-auto relative z-10">
@@ -123,7 +159,7 @@ const SymptomInput = () => {
             </p>
 
             {/* Stepper */}
-            <div className="flex items-center justify-between relative px-4 mb-8">
+            <div className="flex items-center justify-between relative px-4 mb-8 mt-6">
                <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -z-10 rounded-full"></div>
                <div 
                   className="absolute top-1/2 left-0 h-1 bg-blue-600 -z-10 rounded-full transition-all duration-500"
@@ -132,14 +168,11 @@ const SymptomInput = () => {
 
                {[1, 2, 3].map((s) => (
                   <div key={s} className={`flex flex-col items-center gap-2 bg-white px-2 ${step >= s ? 'text-blue-600' : 'text-slate-400'}`}>
-                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border-2 transition-all duration-300 ${
-                        step >= s ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/30' : 'bg-white border-slate-200'
+                     <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 transition-all ${
+                        step >= s ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200'
                      }`}>
                         {step > s ? '✓' : s}
                      </div>
-                     <span className="text-xs font-semibold uppercase tracking-wider">
-                        {s === 1 ? 'Symptoms' : s === 2 ? 'Severity' : 'Details'}
-                     </span>
                   </div>
                ))}
             </div>
@@ -150,7 +183,6 @@ const SymptomInput = () => {
             {step === 1 && (
               <div className="animate-fade-in">
                 <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                   <span className="w-1 h-6 bg-blue-600 rounded-full"></span>
                    What are you experiencing?
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -170,11 +202,6 @@ const SymptomInput = () => {
                         <span className={`font-medium text-sm ${active ? 'text-blue-700' : 'text-slate-600'}`}>
                            {symptom.label}
                         </span>
-                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                           active ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
-                        }`}>
-                           {active && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                        </div>
                       </div>
                     );
                   })}
@@ -186,35 +213,31 @@ const SymptomInput = () => {
             {step === 2 && (
               <div className="animate-fade-in">
                 <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                   <span className="w-1 h-6 bg-blue-600 rounded-full"></span>
                    How severe is it?
                 </h3>
                 <div className="space-y-4">
                   {formData.symptoms.map(symptom => {
                      const label = symptomsList.find(s => s.id === symptom.name)?.label || symptom.name;
                      return (
-                        <div key={symptom.name} className="bg-slate-50 border border-slate-200 p-6 rounded-2xl">
-                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                              <span className="font-bold text-slate-700 text-lg flex items-center gap-2">
-                                 {symptomsList.find(s => s.id === symptom.name)?.icon} {label}
-                              </span>
-                              <div className="flex items-center bg-white rounded-xl p-1 shadow-sm border border-slate-200">
-                                 {[1, 2, 3].map(level => (
-                                    <button
-                                       key={level}
-                                       onClick={() => updateSymptomSeverity(symptom.name, level)}
-                                       className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
-                                          symptom.severity === level 
-                                          ? level === 1 ? 'bg-emerald-100 text-emerald-700 shadow-sm' 
-                                          : level === 2 ? 'bg-amber-100 text-amber-700 shadow-sm' 
-                                          : 'bg-rose-100 text-rose-700 shadow-sm'
-                                          : 'text-slate-500 hover:bg-slate-50'
-                                       }`}
-                                    >
-                                       {level === 1 ? 'Mild' : level === 2 ? 'Moderate' : 'Severe'}
-                                    </button>
-                                 ))}
-                              </div>
+                        <div key={symptom.name} className="bg-slate-50 border border-slate-200 p-6 rounded-2xl flex justify-between items-center">
+                           <span className="font-bold text-slate-700 text-lg flex items-center gap-2">
+                              {symptomsList.find(s => s.id === symptom.name)?.icon} {label}
+                           </span>
+                           
+                           <div className="flex items-center bg-white rounded-xl p-1 shadow-sm border border-slate-200">
+                              {[1, 2, 3].map(level => (
+                                 <button
+                                    key={level}
+                                    onClick={() => updateSymptomSeverity(symptom.name, level)}
+                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                       symptom.severity === level 
+                                       ? level === 1 ? 'bg-emerald-100 text-emerald-700' : level === 2 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'
+                                       : 'text-slate-500 hover:bg-slate-50'
+                                    }`}
+                                 >
+                                    {level === 1 ? 'Mild' : level === 2 ? 'Mod' : 'Severe'}
+                                 </button>
+                              ))}
                            </div>
                         </div>
                      )
@@ -227,42 +250,31 @@ const SymptomInput = () => {
             {step === 3 && (
               <div className="animate-fade-in">
                 <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                   <span className="w-1 h-6 bg-blue-600 rounded-full"></span>
-                   About You
+                   Personal Details
                 </h3>
                 <div className="grid md:grid-cols-2 gap-6">
-                   <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Age</label>
-                      <input
-                        type="number"
-                        placeholder="e.g. 28"
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
-                        value={formData.age}
-                        onChange={(e) => setFormData({...formData, age: e.target.value})}
-                      />
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Gender</label>
-                      <select
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none appearance-none"
-                        value={formData.gender}
-                        onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                      >
-                        <option value="">Select Gender</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                      </select>
-                   </div>
-                   <div className="md:col-span-2 space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lifestyle Factors</label>
-                      <textarea
-                        placeholder="Describe your diet, sleep patterns, stress levels, or daily activity..."
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none h-32 resize-none"
-                        value={formData.lifestyle}
-                        onChange={(e) => setFormData({...formData, lifestyle: e.target.value})}
-                      />
-                   </div>
+                   <input
+                     type="number"
+                     placeholder="Age"
+                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none"
+                     value={formData.age}
+                     onChange={(e) => setFormData({...formData, age: e.target.value})}
+                   />
+                   <select
+                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none"
+                     value={formData.gender}
+                     onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                   >
+                     <option value="">Select Gender</option>
+                     <option value="male">Male</option>
+                     <option value="female">Female</option>
+                   </select>
+                   <textarea
+                     placeholder="Lifestyle factors (diet, sleep, stress)..."
+                     className="md:col-span-2 w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none h-32 resize-none"
+                     value={formData.lifestyle}
+                     onChange={(e) => setFormData({...formData, lifestyle: e.target.value})}
+                   />
                 </div>
               </div>
             )}
@@ -272,7 +284,7 @@ const SymptomInput = () => {
               {step > 1 ? (
                 <button 
                   onClick={() => setStep(step - 1)}
-                  className="px-8 py-3.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                  className="px-8 py-3.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50"
                 >
                   Back
                 </button>
@@ -283,7 +295,7 @@ const SymptomInput = () => {
               <button 
                 onClick={step === 3 ? submitSymptoms : () => setStep(step + 1)}
                 disabled={(step === 1 && formData.symptoms.length === 0) || isLoading}
-                className="flex-1 px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                className="flex-1 px-8 py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-all flex justify-center items-center gap-2"
               >
                 {isLoading ? (
                   <>
@@ -291,17 +303,10 @@ const SymptomInput = () => {
                      Analyzing...
                   </>
                 ) : (
-                   step === 3 ? 'Generate Health Report' : 'Next Step'
+                   step === 3 ? 'Find Specialists' : 'Next Step'
                 )}
               </button>
             </div>
-            
-            {/* Validation Message */}
-            {step === 1 && formData.symptoms.length === 0 && (
-               <p className="text-center mt-4 text-xs text-amber-600 font-medium bg-amber-50 py-2 rounded-lg">
-                  Please select at least one symptom to continue
-               </p>
-            )}
 
           </div>
         </div>

@@ -13,7 +13,9 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import About from "./pages/About";
 import KnowledgeBase from "./pages/KnowledgeBase";
-import DoctorDashboard from "./pages/DoctorDashboard"; // NEW IMPORT
+import DoctorDashboard from "./pages/DoctorDashboard";
+import DoctorList from "./pages/DoctorList";       // <--- NEW
+import DoctorProfile from "./pages/DoctorProfile"; // <--- NEW
 
 function App() {
   return (
@@ -33,8 +35,12 @@ function App() {
           <Route path="/results" element={<Results />} />
           <Route path="/dashboard" element={<Dashboard />} />
           
-          {/* Doctor App Features */}
-          <Route path="/doctor-dashboard" element={<DoctorDashboard />} /> {/* NEW ROUTE */}
+          {/* DOCTOR SECTION ROUTES */}
+          <Route path="/doctors" element={<DoctorList />} />
+          <Route path="/doctors/:id" element={<DoctorProfile />} />
+          
+          {/* Doctor Portal */}
+          <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
           
           {/* Informational Pages */}
           <Route path="/about" element={<About />} />

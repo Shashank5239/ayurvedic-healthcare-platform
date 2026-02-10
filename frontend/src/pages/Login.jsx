@@ -1,16 +1,16 @@
 import React, { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom"; 
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
-  const [role, setRole] = useState('patient'); // NEW: Tracks selected role
+  const [role, setRole] = useState('patient');
   const [isFlipped, setIsFlipped] = useState(false);
   
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Determine where to go after login based on Role or previous location
+  // Determine redirect path
   const redirectPath = location.state?.from || (role === 'doctor' ? "/doctor-dashboard" : "/dashboard");
   const alertMessage = location.state?.message;
 
@@ -18,21 +18,41 @@ export default function Login() {
     name: "",
     email: "",
     password: "",
+    license: "" // Extra field for doctors
   });
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // ===== 1. LOGIN HANDLER (Enters the Portal) =====
   const handleLogin = (e) => {
     e.preventDefault();
     
-    // Simulate specific names for demo purposes
+    // Mock Authentication Logic
     const userName = formData.name || (role === 'doctor' ? "Dr. Abhay Dogra" : "Test User");
     
-    // Pass the role to AuthContext
+    // Log in via Context
     login({ name: userName, email: formData.email }, role);
+    
+    // Redirect to the correct dashboard
     navigate(redirectPath);
+  };
+
+  // ===== 2. SIGNUP HANDLER (Redirects to Login) =====
+  const handleSignup = (e) => {
+    e.preventDefault();
+    
+    // Simulate Backend Registration...
+    
+    // Clear password for security/UX
+    setFormData(prev => ({ ...prev, password: "" }));
+    
+    // Flip back to Sign In view
+    setIsFlipped(false);
+    
+    // Optional: You could set a success message state here to display on the login card
+    alert(`Registration successful! Please sign in to access the ${role === 'doctor' ? 'Clinician Portal' : 'Patient Dashboard'}.`);
   };
 
   return (
@@ -45,39 +65,34 @@ export default function Login() {
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-50/60 rounded-full blur-[80px] opacity-70" />
       </div>
 
-      {/* Header */}
-      <div className="absolute top-8 left-0 w-full flex justify-center z-20">
-         <Link to="/" className="flex items-center gap-2 bg-white/50 backdrop-blur-md px-5 py-2 rounded-full shadow-sm border border-white/60 hover:scale-105 transition-transform">
-            <div className="w-6 h-6 bg-blue-600 rounded text-white font-bold flex items-center justify-center text-xs">A</div>
-            <span className="font-bold text-slate-700 font-serif">AyurSaaS</span>
-         </Link>
+      {/* Clean Header */}
+      <div className="absolute top-10 left-0 w-full flex justify-center z-20">
+         <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-500/30">
+              A
+            </div>
+            <span className="font-bold text-2xl text-slate-800 font-serif tracking-tight">
+              AyurSaaS
+            </span>
+         </div>
       </div>
 
+      {/* 3D Card Container */}
       <div className="w-full max-w-md px-4 perspective group">
         <div className={`grid grid-cols-1 grid-rows-1 transition-all duration-700 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
           
-          {/* FRONT: SIGN IN */}
+          {/* ==============================
+              FRONT: LOGIN FORM
+          ============================== */}
           <div className="col-start-1 row-start-1 backface-hidden z-10">
              <div className="bg-white/80 backdrop-blur-xl border border-white/60 shadow-2xl rounded-[2rem] p-8 relative overflow-hidden">
                 
-                {/* ROLE TOGGLE SWITCH */}
+                {/* ROLE TOGGLE */}
                 <div className="flex justify-center mb-6">
                    <div className="bg-slate-100 p-1 rounded-xl flex relative">
-                      {/* Sliding Pill Animation */}
                       <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-lg shadow-sm transition-all duration-300 ${role === 'doctor' ? 'left-[calc(50%+2px)]' : 'left-1'}`}></div>
-                      
-                      <button 
-                        onClick={() => setRole('patient')}
-                        className={`relative z-10 px-6 py-1.5 text-sm font-bold transition-colors ${role === 'patient' ? 'text-blue-600' : 'text-slate-500'}`}
-                      >
-                        Patient
-                      </button>
-                      <button 
-                        onClick={() => setRole('doctor')}
-                        className={`relative z-10 px-6 py-1.5 text-sm font-bold transition-colors ${role === 'doctor' ? 'text-blue-600' : 'text-slate-500'}`}
-                      >
-                        Doctor
-                      </button>
+                      <button onClick={() => setRole('patient')} className={`relative z-10 px-6 py-1.5 text-sm font-bold transition-colors ${role === 'patient' ? 'text-blue-600' : 'text-slate-500'}`}>Patient</button>
+                      <button onClick={() => setRole('doctor')} className={`relative z-10 px-6 py-1.5 text-sm font-bold transition-colors ${role === 'doctor' ? 'text-blue-600' : 'text-slate-500'}`}>Doctor</button>
                    </div>
                 </div>
 
@@ -97,15 +112,25 @@ export default function Login() {
                 <form onSubmit={handleLogin} className="space-y-4">
                    <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-500 ml-1 uppercase">Email</label>
-                      <input type="email" name="email" placeholder={role === 'doctor' ? "dr.name@hospital.com" : "name@example.com"}
+                      <input 
+                        type="email" 
+                        name="email" 
+                        value={formData.email} // Controlled input to keep email after signup
+                        placeholder={role === 'doctor' ? "dr.name@hospital.com" : "name@example.com"}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none" />
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none" 
+                      />
                    </div>
                    <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-500 ml-1 uppercase">Password</label>
-                      <input type="password" name="password" placeholder="••••••••"
+                      <input 
+                        type="password" 
+                        name="password" 
+                        value={formData.password}
+                        placeholder="••••••••"
                         onChange={handleChange}
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none" />
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none" 
+                      />
                    </div>
 
                    <button type="submit" className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 transform hover:-translate-y-0.5 transition-all">
@@ -113,31 +138,76 @@ export default function Login() {
                    </button>
                 </form>
 
-                {role === 'patient' && (
-                   <div className="mt-6 text-center border-t border-slate-100 pt-6">
-                      <p className="text-slate-500 text-sm">
-                         New here? <button onClick={() => setIsFlipped(true)} className="font-bold text-blue-600 hover:underline">Create Account</button>
-                      </p>
-                   </div>
-                )}
+                {/* Switch to Signup */}
+                <div className="mt-6 text-center border-t border-slate-100 pt-6">
+                   <p className="text-slate-500 text-sm">
+                      {role === 'doctor' ? 'New Practitioner?' : 'New here?'} 
+                      <button onClick={() => setIsFlipped(true)} className="font-bold text-blue-600 hover:underline ml-1">
+                         Create Account
+                      </button>
+                   </p>
+                </div>
              </div>
           </div>
 
-          {/* BACK: SIGN UP (Patients Only) */}
+          {/* ==============================
+              BACK: SIGN UP FORM
+          ============================== */}
           <div className="col-start-1 row-start-1 backface-hidden rotate-y-180 z-10">
              <div className="bg-gradient-to-b from-blue-50 to-white backdrop-blur-xl border border-blue-200 shadow-2xl rounded-[2rem] p-8 relative overflow-hidden">
                 <div className="text-center mb-6">
-                  <h2 className="text-2xl font-bold text-blue-900 font-serif">Join AyurSaaS</h2>
-                  <p className="text-slate-500 text-sm">Create your patient profile.</p>
+                  <h2 className="text-2xl font-bold text-blue-900 font-serif">
+                     {role === 'doctor' ? 'Join Medical Network' : 'Join AyurSaaS'}
+                  </h2>
+                  <p className="text-slate-500 text-sm">
+                     {role === 'doctor' ? 'Register your clinic.' : 'Create your patient profile.'}
+                  </p>
                 </div>
-                {/* Simplified Signup Form */}
-                <form onSubmit={(e) => {e.preventDefault(); setIsFlipped(false);}} className="space-y-3">
-                   <input type="text" placeholder="Full Name" className="w-full px-4 py-3 bg-white border border-blue-100 rounded-xl" />
-                   <input type="email" placeholder="Email" className="w-full px-4 py-3 bg-white border border-blue-100 rounded-xl" />
-                   <button className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg mt-2">Create Account</button>
+                
+                <form onSubmit={handleSignup} className="space-y-3">
+                   <input 
+                     type="text" 
+                     name="name"
+                     onChange={handleChange}
+                     placeholder={role === 'doctor' ? "Dr. Full Name" : "Full Name"} 
+                     className="w-full px-4 py-3 bg-white border border-blue-100 rounded-xl outline-none focus:border-blue-500" 
+                   />
+                   <input 
+                     type="email" 
+                     name="email"
+                     onChange={handleChange}
+                     placeholder="Email Address" 
+                     className="w-full px-4 py-3 bg-white border border-blue-100 rounded-xl outline-none focus:border-blue-500" 
+                   />
+                   
+                   {/* License ID for Doctors */}
+                   {role === 'doctor' && (
+                      <input 
+                        type="text" 
+                        name="license"
+                        onChange={handleChange}
+                        placeholder="Medical License ID" 
+                        className="w-full px-4 py-3 bg-white border border-blue-100 rounded-xl outline-none focus:border-blue-500" 
+                      />
+                   )}
+
+                   <input 
+                     type="password" 
+                     name="password"
+                     onChange={handleChange}
+                     placeholder="Create Password" 
+                     className="w-full px-4 py-3 bg-white border border-blue-100 rounded-xl outline-none focus:border-blue-500" 
+                   />
+
+                   <button className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg mt-2 hover:bg-blue-700 transition-all">
+                      {role === 'doctor' ? 'Register' : 'Create Account'}
+                   </button>
                 </form>
+
                 <div className="mt-6 text-center">
-                   <button onClick={() => setIsFlipped(false)} className="text-sm font-bold text-blue-600">Back to Sign In</button>
+                   <button onClick={() => setIsFlipped(false)} className="text-sm font-bold text-blue-600 hover:underline">
+                      Back to Sign In
+                   </button>
                 </div>
              </div>
           </div>
